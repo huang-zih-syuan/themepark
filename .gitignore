@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+report_rendered/
+.venv/
+venv/
+*.docx
+*.pdf
+assignment_pdf_text.txt
+pseudocode_best_visiting_plan.png

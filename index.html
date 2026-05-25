@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智慧景點行程規劃系統</title>
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #27ae60;
+            --danger: #e74c3c;
+            --info: #3498db;
+            --warning: #f39c12;
+            --bg: #ecf0f1;
+        }
+
+        * { box-sizing: border-box; }
+        body {
+            font-family: "Segoe UI", "Microsoft JhengHei", sans-serif;
+            background: var(--bg);
+            margin: 0;
+            padding: 20px;
+            color: #263238;
+        }
+
+        .grid-container {
+            display: grid;
+            grid-template-columns: 1.15fr 1fr 1.45fr;
+            gap: 20px;
+            max-width: 1680px;
+            margin: auto;
+        }
+
+        .card {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+
+        h2 {
+            margin-top: 0;
+            color: var(--primary);
+            border-bottom: 3px solid var(--secondary);
+            padding-bottom: 10px;
+            font-size: 1.2rem;
+        }
+
+        h3 {
+            font-size: 1rem;
+            color: #34495e;
+            margin: 0 0 10px;
+            border-left: 4px solid var(--info);
+            padding-left: 8px;
+        }
+
+        label { font-weight: 700; }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ccd4da;
+            border-radius: 4px;
+            font: inherit;
+        }
+
+        textarea {
+            min-height: 230px;
+            resize: vertical;
+            font-family: Consolas, "Courier New", monospace;
+            font-size: 0.86rem;
+            line-height: 1.45;
+        }
+
+        button {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 4px;
+            font-weight: 700;
+            cursor: pointer;
+            color: #fff;
+            transition: 0.2s;
+            white-space: nowrap;
+        }
+
+        button:hover { filter: brightness(0.92); }
+
+        .btn-add { background: var(--secondary); }
+        .btn-edit { background: var(--info); }
+        .btn-del { background: var(--danger); }
+        .btn-muted { background: #607d8b; }
+        .btn-calc {
+            background: var(--warning);
+            width: 100%;
+            font-size: 1.1rem;
+            padding: 15px;
+            margin-top: 12px;
+        }
+
+        .crud-box {
+            background: #f8f9fa;
+            padding: 15px;
+            border: 1px solid #e2e7eb;
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+
+        .form-group {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 10px;
+            align-items: center;
+        }
+
+        .form-group > label {
+            width: 132px;
+            flex: 0 0 132px;
+        }
+
+        .button-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        #sysLog {
+            height: 230px;
+            overflow-y: auto;
+            background: #1e272e;
+            color: #4cd137;
+            padding: 15px;
+            font-family: Consolas, "Courier New", monospace;
+            font-size: 0.9rem;
+            border-radius: 6px;
+            line-height: 1.6;
+        }
+
+        #canvas-container {
+            width: 100%;
+            height: 760px;
+            border: 1px solid #cfd8dc;
+            border-radius: 6px;
+            background: #fafafa;
+        }
+
+        @media (max-width: 1180px) {
+            .grid-container { grid-template-columns: 1fr; }
+            #canvas-container { height: 580px; }
+        }
+    </style>
+</head>
+<body>
+<div class="grid-container">
+    <div class="card">
+        <h2>1. 地圖資料</h2>
+
+        <div class="crud-box">
+            <h3>JSON 匯入</h3>
+            <div class="form-group">
+                <input type="file" id="jsonFileInput" accept=".json,application/json" onchange="uploadJsonFile(event)">
+            </div>
+            <textarea id="jsonInput" spellcheck="false"></textarea>
+            <div class="button-row">
+                <button class="btn-add" onclick="importJson()">匯入 JSON</button>
+                <button class="btn-edit" onclick="loadSampleGraph()">載入 10 點範例</button>
+                <button class="btn-muted" onclick="copyCurrentGraphToJson()">目前圖轉 JSON</button>
+            </div>
+        </div>
+
+        <div class="crud-box">
+            <h3>新增景點</h3>
+            <div class="form-group">
+                <input type="text" id="newName" placeholder="請輸入新景點名稱">
+                <button class="btn-add" onclick="addNode()">新增</button>
+            </div>
+
+            <h3>編輯景點</h3>
+            <div class="form-group">
+                <select id="editNodeSelect" onchange="updateEditPlaceholder()"></select>
+                <select id="editFieldSelect" onchange="updateEditPlaceholder()">
+                    <option value="name">名稱</option>
+                    <option value="W_time">耗時</option>
+                    <option value="W_cost">預算</option>
+                    <option value="W_stamina">體力</option>
+                    <option value="W_satisfaction">滿意度</option>
+                    <option value="W_thrill">刺激度</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <input type="text" id="editValue" placeholder="輸入新數值">
+                <button class="btn-edit" onclick="updateNode()">儲存</button>
+            </div>
+
+            <h3>刪除景點</h3>
+            <div class="form-group">
+                <select id="delNodeSelect"></select>
+                <button class="btn-del" onclick="deleteNode()">刪除</button>
+            </div>
+        </div>
+
+        <div class="crud-box">
+            <h3>路徑連線</h3>
+            <div class="form-group">
+                <select id="eSrc"></select>
+                <select id="eTgt"></select>
+            </div>
+            <div class="form-group">
+                <input type="number" id="eTime" placeholder="移動耗時">
+                <button class="btn-add" onclick="upsertEdge()">連接/更新</button>
+                <button class="btn-del" onclick="deleteEdge()">斷開</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>2. 限制條件</h2>
+        <div class="crud-box">
+            <div class="form-group">
+                <label>起點</label>
+                <select id="startNodeSelect"></select>
+            </div>
+            <div class="form-group">
+                <label>總時間上限</label>
+                <input type="number" id="limitTime" value="170">
+            </div>
+            <div class="form-group">
+                <label>總預算上限</label>
+                <input type="number" id="limitCost" value="800">
+            </div>
+            <div class="form-group">
+                <label>總體力上限</label>
+                <input type="number" id="limitStamina" value="95">
+            </div>
+            <div class="form-group">
+                <label>最低滿意度</label>
+                <input type="number" id="limitSatisfaction" value="5" min="1" max="10">
+            </div>
+            <div class="form-group">
+                <label>最高刺激度</label>
+                <input type="number" id="limitThrill" value="8" min="1" max="10">
+            </div>
+        </div>
+
+        <div class="crud-box">
+            <h3>測試參數</h3>
+            <div class="button-row">
+                <button class="btn-edit" onclick="applyPreset('balanced')">一般可行</button>
+                <button class="btn-edit" onclick="applyPreset('tightTime')">時間太緊</button>
+                <button class="btn-edit" onclick="applyPreset('lowThrill')">低刺激限制</button>
+                <button class="btn-edit" onclick="applyPreset('lowBudget')">低預算限制</button>
+                <button class="btn-edit" onclick="applyPreset('highSatisfaction')">高滿意度</button>
+            </div>
+        </div>
+
+        <button class="btn-calc" onclick="runOptimization()">執行最佳化</button>
+
+        <h3 style="margin-top: 20px;">系統狀態日誌</h3>
+        <div id="sysLog">[System] 系統初始化完成，等待指令...<br></div>
+    </div>
+
+    <div class="card">
+        <h2>3. 最佳化結果</h2>
+        <div id="canvas-container"></div>
+    </div>
+</div>
+
+<script>
+    let network = null;
+    let nodesDataSet = new vis.DataSet();
+    let edgesDataSet = new vis.DataSet();
+    let graphData = { vertices: [], edges: [] };
+
+    const sampleGraph10 = {
+        vertices: [
+            { id: "1", name: "入口廣場", W_time: 8, W_cost: 0, W_stamina: 4, W_satisfaction: 5, W_thrill: 1 },
+            { id: "2", name: "魔法城堡", W_time: 22, W_cost: 120, W_stamina: 12, W_satisfaction: 8, W_thrill: 3 },
+            { id: "3", name: "旋轉木馬", W_time: 14, W_cost: 60, W_stamina: 6, W_satisfaction: 6, W_thrill: 2 },
+            { id: "4", name: "海盜船", W_time: 18, W_cost: 80, W_stamina: 14, W_satisfaction: 7, W_thrill: 7 },
+            { id: "5", name: "雲霄飛車", W_time: 24, W_cost: 150, W_stamina: 24, W_satisfaction: 9, W_thrill: 10 },
+            { id: "6", name: "鬼屋探險", W_time: 20, W_cost: 90, W_stamina: 16, W_satisfaction: 7, W_thrill: 8 },
+            { id: "7", name: "水上漂流", W_time: 21, W_cost: 110, W_stamina: 18, W_satisfaction: 8, W_thrill: 6 },
+            { id: "8", name: "摩天輪", W_time: 16, W_cost: 70, W_stamina: 5, W_satisfaction: 7, W_thrill: 2 },
+            { id: "9", name: "美食街", W_time: 25, W_cost: 180, W_stamina: 3, W_satisfaction: 8, W_thrill: 1 },
+            { id: "10", name: "夜光劇場", W_time: 28, W_cost: 130, W_stamina: 8, W_satisfaction: 9, W_thrill: 2 }
+        ],
+        edges: [
+            { source: "1", target: "2", w_time: 8 },
+            { source: "1", target: "3", w_time: 6 },
+            { source: "1", target: "8", w_time: 10 },
+            { source: "1", target: "9", w_time: 12 },
+            { source: "2", target: "3", w_time: 7 },
+            { source: "2", target: "4", w_time: 9 },
+            { source: "2", target: "6", w_time: 13 },
+            { source: "3", target: "4", w_time: 8 },
+            { source: "3", target: "8", w_time: 9 },
+            { source: "4", target: "5", w_time: 6 },
+            { source: "4", target: "7", w_time: 7 },
+            { source: "5", target: "6", w_time: 7 },
+            { source: "5", target: "7", w_time: 8 },
+            { source: "6", target: "7", w_time: 6 },
+            { source: "6", target: "10", w_time: 10 },
+            { source: "7", target: "8", w_time: 11 },
+            { source: "7", target: "10", w_time: 9 },
+            { source: "8", target: "9", w_time: 5 },
+            { source: "8", target: "10", w_time: 12 },
+            { source: "9", target: "10", w_time: 8 },
+            { source: "2", target: "9", w_time: 14 },
+            { source: "3", target: "9", w_time: 11 }
+        ]
+    };
+
+    const presets = {
+        balanced: { start: "1", time: 170, cost: 800, stamina: 95, satisfaction: 5, thrill: 8 },
+        tightTime: { start: "1", time: 95, cost: 800, stamina: 95, satisfaction: 5, thrill: 8 },
+        lowThrill: { start: "1", time: 170, cost: 800, stamina: 95, satisfaction: 5, thrill: 3 },
+        lowBudget: { start: "1", time: 170, cost: 300, stamina: 95, satisfaction: 5, thrill: 8 },
+        highSatisfaction: { start: "1", time: 190, cost: 900, stamina: 105, satisfaction: 8, thrill: 8 }
+    };
+
+    function logSys(msg) {
+        const logBox = document.getElementById("sysLog");
+        logBox.innerHTML += `[${new Date().toLocaleTimeString()}] ${msg}<br>`;
+        logBox.scrollTop = logBox.scrollHeight;
+    }
+
+    function cloneData(data) {
+        return JSON.parse(JSON.stringify(data));
+    }
+
+    function syncDropdowns() {
+        const options = graphData.vertices
+            .map(v => `<option value="${v.id}">${v.id}. ${v.name}</option>`)
+            .join("");
+        ["editNodeSelect", "delNodeSelect", "eSrc", "eTgt", "startNodeSelect"].forEach(id => {
+            document.getElementById(id).innerHTML = options;
+        });
+        updateEditPlaceholder();
+    }
+
+    function updateEditPlaceholder() {
+        const id = document.getElementById("editNodeSelect").value;
+        const field = document.getElementById("editFieldSelect").value;
+        const node = graphData.vertices.find(v => v.id === id);
+        if (node) {
+            document.getElementById("editValue").placeholder = `目前設定值: ${node[field]}`;
+            document.getElementById("editValue").value = "";
+        }
+    }
+
+    function resetGraphView() {
+        nodesDataSet.clear();
+        edgesDataSet.clear();
+        network = null;
+        syncDropdowns();
+        renderGraph();
+    }
+
+    function validateGraph(data) {
+        if (!data || !Array.isArray(data.vertices) || !Array.isArray(data.edges)) {
+            throw new Error("JSON 必須包含 vertices 與 edges 陣列。");
+        }
+        const ids = new Set(data.vertices.map(v => String(v.id)));
+        if (ids.size !== data.vertices.length) {
+            throw new Error("頂點 id 不可重複。");
+        }
+        for (const edge of data.edges) {
+            if (!ids.has(String(edge.source)) || !ids.has(String(edge.target))) {
+                throw new Error(`邊 ${edge.source}-${edge.target} 連到不存在的頂點。`);
+            }
+        }
+    }
+
+    function setGraph(data) {
+        validateGraph(data);
+        graphData = {
+            vertices: data.vertices.map(v => ({
+                id: String(v.id),
+                name: v.name || `景點 ${v.id}`,
+                W_time: Number(v.W_time) || 0,
+                W_cost: Number(v.W_cost) || 0,
+                W_stamina: Number(v.W_stamina) || 0,
+                W_satisfaction: Number(v.W_satisfaction) || 1,
+                W_thrill: Number(v.W_thrill) || 1
+            })),
+            edges: data.edges.map(e => ({
+                source: String(e.source),
+                target: String(e.target),
+                w_time: Number(e.w_time) || 0
+            }))
+        };
+        resetGraphView();
+    }
+
+    function importJson() {
+        try {
+            const parsed = JSON.parse(document.getElementById("jsonInput").value);
+            const graph = parsed.graph || parsed;
+            setGraph(graph);
+            if (parsed.startNode) document.getElementById("startNodeSelect").value = String(parsed.startNode);
+            if (parsed.constraints) {
+                document.getElementById("limitTime").value = parsed.constraints.W_time ?? document.getElementById("limitTime").value;
+                document.getElementById("limitCost").value = parsed.constraints.W_cost ?? document.getElementById("limitCost").value;
+                document.getElementById("limitStamina").value = parsed.constraints.W_stamina ?? document.getElementById("limitStamina").value;
+                document.getElementById("limitSatisfaction").value = parsed.constraints.W_satisfaction_min ?? document.getElementById("limitSatisfaction").value;
+                document.getElementById("limitThrill").value = parsed.constraints.W_thrill_max ?? document.getElementById("limitThrill").value;
+            }
+            logSys(`已匯入 JSON：${graphData.vertices.length} 個頂點、${graphData.edges.length} 條邊。`);
+        } catch (error) {
+            alert(`JSON 匯入失敗：${error.message}`);
+        }
+    }
+
+    function uploadJsonFile(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = () => {
+            document.getElementById("jsonInput").value = reader.result;
+            importJson();
+            logSys(`已上傳並匯入檔案：${file.name}`);
+        };
+        reader.onerror = () => {
+            alert("JSON 檔案讀取失敗。");
+        };
+        reader.readAsText(file, "UTF-8");
+    }
+
+    function copyCurrentGraphToJson() {
+        document.getElementById("jsonInput").value = JSON.stringify({
+            graph: graphData,
+            startNode: document.getElementById("startNodeSelect").value,
+            constraints: getConstraints()
+        }, null, 2);
+        logSys("已把目前圖形與限制條件轉成 JSON。");
+    }
+
+    function loadSampleGraph() {
+        setGraph(cloneData(sampleGraph10));
+        document.getElementById("jsonInput").value = JSON.stringify(sampleGraph10, null, 2);
+        applyPreset("balanced", false);
+        logSys("已載入 10 個頂點測試範例。");
+    }
+
+    function applyPreset(name, shouldLog = true) {
+        const preset = presets[name];
+        document.getElementById("startNodeSelect").value = preset.start;
+        document.getElementById("limitTime").value = preset.time;
+        document.getElementById("limitCost").value = preset.cost;
+        document.getElementById("limitStamina").value = preset.stamina;
+        document.getElementById("limitSatisfaction").value = preset.satisfaction;
+        document.getElementById("limitThrill").value = preset.thrill;
+        if (shouldLog) logSys(`已套用測試參數：${name}`);
+    }
+
+    function addNode() {
+        const name = document.getElementById("newName").value.trim() || "未命名景點";
+        const ids = graphData.vertices.map(v => parseInt(v.id, 10)).filter(n => !Number.isNaN(n));
+        const newId = (ids.length > 0 ? Math.max(...ids) + 1 : 1).toString();
+        graphData.vertices.push({ id: newId, name, W_time: 0, W_cost: 0, W_stamina: 0, W_satisfaction: 5, W_thrill: 5 });
+        document.getElementById("newName").value = "";
+        logSys(`新增景點 [${newId}. ${name}]`);
+        syncDropdowns();
+        renderGraph();
+    }
+
+    function updateNode() {
+        const id = document.getElementById("editNodeSelect").value;
+        const field = document.getElementById("editFieldSelect").value;
+        const valInput = document.getElementById("editValue").value.trim();
+        if (!id) return alert("請先選擇景點。");
+        if (!valInput) return alert("請輸入新的數值。");
+
+        const node = graphData.vertices.find(v => v.id === id);
+        node[field] = field === "name" ? valInput : Number(valInput) || 0;
+        logSys(`景點 [${id}] 的 ${field} 已更新為 ${valInput}`);
+        document.getElementById("editValue").value = "";
+        syncDropdowns();
+        renderGraph();
+    }
+
+    function deleteNode() {
+        const id = document.getElementById("delNodeSelect").value;
+        if (!id) return;
+        graphData.vertices = graphData.vertices.filter(v => v.id !== id);
+        graphData.edges = graphData.edges.filter(e => e.source !== id && e.target !== id);
+        logSys(`已刪除景點 [${id}]`);
+        syncDropdowns();
+        renderGraph();
+    }
+
+    function upsertEdge() {
+        const src = document.getElementById("eSrc").value;
+        const tgt = document.getElementById("eTgt").value;
+        if (src === tgt) return alert("起點和終點不能是同一個景點。");
+
+        const time = Number(document.getElementById("eTime").value) || 0;
+        const idx = graphData.edges.findIndex(e => (e.source === src && e.target === tgt) || (e.source === tgt && e.target === src));
+        if (idx >= 0) {
+            graphData.edges[idx].w_time = time;
+            logSys(`路線 [${src} - ${tgt}] 耗時更新為 ${time} 分鐘。`);
+        } else {
+            graphData.edges.push({ source: src, target: tgt, w_time: time });
+            logSys(`建立路線 [${src} - ${tgt}]，耗時 ${time} 分鐘。`);
+        }
+        renderGraph();
+    }
+
+    function deleteEdge() {
+        const src = document.getElementById("eSrc").value;
+        const tgt = document.getElementById("eTgt").value;
+        graphData.edges = graphData.edges.filter(e => !((e.source === src && e.target === tgt) || (e.source === tgt && e.target === src)));
+        logSys(`已斷開路線 [${src} - ${tgt}]。`);
+        renderGraph();
+    }
+
+    function renderGraph() {
+        const updatedNodes = graphData.vertices.map(v => ({
+            id: v.id,
+            label: `${v.id}. ${v.name}\n時間:${v.W_time} 預算:${v.W_cost} 體力:${v.W_stamina}\n滿意:${v.W_satisfaction} 刺激:${v.W_thrill}`,
+            color: { background: "#34495e", border: "#2c3e50" },
+            font: { color: "white", size: 12, multi: true }
+        }));
+
+        const updatedEdges = graphData.edges.map(e => ({
+            id: `e_${e.source}_${e.target}`,
+            from: e.source,
+            to: e.target,
+            label: `${e.w_time}m`,
+            color: { color: "#bdc3c7" },
+            width: 2
+        }));
+
+        if (!network) {
+            nodesDataSet.add(updatedNodes);
+            edgesDataSet.add(updatedEdges);
+            network = new vis.Network(
+                document.getElementById("canvas-container"),
+                { nodes: nodesDataSet, edges: edgesDataSet },
+                {
+                    physics: {
+                        enabled: true,
+                        barnesHut: { avoidOverlap: 0.6, springLength: 150 },
+                        stabilization: { iterations: 80 }
+                    },
+                    layout: { randomSeed: 42 },
+                    interaction: { hover: true }
+                }
+            );
+            network.on("stabilizationIterationsDone", () => network.setOptions({ physics: false }));
+        } else {
+            const currentNodes = nodesDataSet.getIds();
+            const currentEdges = edgesDataSet.getIds();
+            nodesDataSet.remove(currentNodes.filter(id => !updatedNodes.find(n => n.id === id)));
+            edgesDataSet.remove(currentEdges.filter(id => !updatedEdges.find(e => e.id === id)));
+            nodesDataSet.update(updatedNodes);
+            edgesDataSet.update(updatedEdges);
+        }
+    }
+
+    function getConstraints() {
+        return {
+            W_time: Number(document.getElementById("limitTime").value) || 9999,
+            W_cost: Number(document.getElementById("limitCost").value) || 9999,
+            W_stamina: Number(document.getElementById("limitStamina").value) || 9999,
+            W_satisfaction_min: Number(document.getElementById("limitSatisfaction").value) || 1,
+            W_thrill_max: Number(document.getElementById("limitThrill").value) || 10
+        };
+    }
+
+    async function runOptimization() {
+        if (graphData.vertices.length === 0) return logSys("錯誤：地圖為空。");
+        logSys("執行 DFS 約束剪枝搜尋...");
+
+        const payload = {
+            graph: graphData,
+            startNode: document.getElementById("startNodeSelect").value,
+            constraints: getConstraints()
+        };
+
+        try {
+            const res = await fetch("/optimize", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload)
+            });
+            const result = await res.json();
+
+            if (result.success) {
+                logSys(`計算完成，最佳路徑：${result.tour.join(" -> ")}`);
+                logSys(`累計資源：時間 ${result.metrics.time}，預算 ${result.metrics.budget}，體力 ${result.metrics.stamina}`);
+                renderGraph();
+                result.tour.forEach(nId => nodesDataSet.update({ id: nId, color: { background: "#e74c3c", border: "#c0392b" } }));
+                for (let i = 0; i < result.tour.length - 1; i++) {
+                    const u = result.tour[i];
+                    const v = result.tour[i + 1];
+                    const edgeId = edgesDataSet.get(`e_${u}_${v}`) ? `e_${u}_${v}` : `e_${v}_${u}`;
+                    if (edgesDataSet.get(edgeId)) {
+                        edgesDataSet.update({ id: edgeId, color: { color: "#e74c3c" }, width: 4 });
+                    }
+                }
+            } else {
+                logSys(`錯誤：${result.message || result.error}`);
+            }
+        } catch (error) {
+            logSys("伺服器連線失敗，請確認 Python 後端正在執行。");
+        }
+    }
+
+    window.onload = () => {
+        loadSampleGraph();
+    };
+</script>
+</body>
+</html>

@@ -1,0 +1,48 @@
+{
+  "graph": {
+    "vertices": [
+      { "id": "1", "name": "入口廣場", "W_time": 8, "W_cost": 0, "W_stamina": 4, "W_satisfaction": 5, "W_thrill": 1 },
+      { "id": "2", "name": "魔法城堡", "W_time": 22, "W_cost": 120, "W_stamina": 12, "W_satisfaction": 8, "W_thrill": 3 },
+      { "id": "3", "name": "旋轉木馬", "W_time": 14, "W_cost": 60, "W_stamina": 6, "W_satisfaction": 6, "W_thrill": 2 },
+      { "id": "4", "name": "海盜船", "W_time": 18, "W_cost": 80, "W_stamina": 14, "W_satisfaction": 7, "W_thrill": 7 },
+      { "id": "5", "name": "雲霄飛車", "W_time": 24, "W_cost": 150, "W_stamina": 24, "W_satisfaction": 9, "W_thrill": 10 },
+      { "id": "6", "name": "鬼屋探險", "W_time": 20, "W_cost": 90, "W_stamina": 16, "W_satisfaction": 7, "W_thrill": 8 },
+      { "id": "7", "name": "水上漂流", "W_time": 21, "W_cost": 110, "W_stamina": 18, "W_satisfaction": 8, "W_thrill": 6 },
+      { "id": "8", "name": "摩天輪", "W_time": 16, "W_cost": 70, "W_stamina": 5, "W_satisfaction": 7, "W_thrill": 2 },
+      { "id": "9", "name": "美食街", "W_time": 25, "W_cost": 180, "W_stamina": 3, "W_satisfaction": 8, "W_thrill": 1 },
+      { "id": "10", "name": "夜光劇場", "W_time": 28, "W_cost": 130, "W_stamina": 8, "W_satisfaction": 9, "W_thrill": 2 }
+    ],
+    "edges": [
+      { "source": "1", "target": "2", "w_time": 8 },
+      { "source": "1", "target": "3", "w_time": 6 },
+      { "source": "1", "target": "8", "w_time": 10 },
+      { "source": "1", "target": "9", "w_time": 12 },
+      { "source": "2", "target": "3", "w_time": 7 },
+      { "source": "2", "target": "4", "w_time": 9 },
+      { "source": "2", "target": "6", "w_time": 13 },
+      { "source": "3", "target": "4", "w_time": 8 },
+      { "source": "3", "target": "8", "w_time": 9 },
+      { "source": "4", "target": "5", "w_time": 6 },
+      { "source": "4", "target": "7", "w_time": 7 },
+      { "source": "5", "target": "6", "w_time": 7 },
+      { "source": "5", "target": "7", "w_time": 8 },
+      { "source": "6", "target": "7", "w_time": 6 },
+      { "source": "6", "target": "10", "w_time": 10 },
+      { "source": "7", "target": "8", "w_time": 11 },
+      { "source": "7", "target": "10", "w_time": 9 },
+      { "source": "8", "target": "9", "w_time": 5 },
+      { "source": "8", "target": "10", "w_time": 12 },
+      { "source": "9", "target": "10", "w_time": 8 },
+      { "source": "2", "target": "9", "w_time": 14 },
+      { "source": "3", "target": "9", "w_time": 11 }
+    ]
+  },
+  "startNode": "1",
+  "constraints": {
+    "W_time": 170,
+    "W_cost": 800,
+    "W_stamina": 95,
+    "W_satisfaction_min": 5,
+    "W_thrill_max": 8
+  }
+}
