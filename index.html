@@ -26,11 +26,16 @@
 
         .grid-container {
             display: grid;
-            grid-template-columns: 1.15fr 1fr 1.45fr;
+            grid-template-columns: 1.15fr 1.45fr 1fr;
+            grid-template-areas: "data result controls";
             gap: 20px;
             max-width: 1680px;
             margin: auto;
         }
+
+        .data-panel { grid-area: data; }
+        .controls-panel { grid-area: controls; }
+        .result-panel { grid-area: result; }
 
         .card {
             background: #fff;
@@ -146,14 +151,20 @@
         }
 
         @media (max-width: 1180px) {
-            .grid-container { grid-template-columns: 1fr; }
+            .grid-container {
+                grid-template-columns: 1fr;
+                grid-template-areas:
+                    "data"
+                    "controls"
+                    "result";
+            }
             #canvas-container { height: 580px; }
         }
     </style>
 </head>
 <body>
 <div class="grid-container">
-    <div class="card">
+    <div class="card data-panel">
         <h2>1. 地圖資料</h2>
 
         <div class="crud-box">
@@ -214,12 +225,12 @@
         </div>
     </div>
 
-    <div class="card">
+    <div class="card controls-panel">
         <h2>2. 限制條件</h2>
         <div class="crud-box">
             <div class="form-group">
                 <label>起點</label>
-                <select id="startNodeSelect"></select>
+                <select id="startNodeSelect" onchange="handleStartNodeChange()"></select>
             </div>
             <div class="form-group">
                 <label>總時間上限</label>
@@ -260,7 +271,7 @@
         <div id="sysLog">[System] 系統初始化完成，等待指令...<br></div>
     </div>
 
-    <div class="card">
+    <div class="card result-panel">
         <h2>3. 最佳化結果</h2>
         <div id="canvas-container"></div>
     </div>
@@ -406,6 +417,7 @@
                 document.getElementById("limitSatisfaction").value = parsed.constraints.W_satisfaction_min ?? document.getElementById("limitSatisfaction").value;
                 document.getElementById("limitThrill").value = parsed.constraints.W_thrill_max ?? document.getElementById("limitThrill").value;
             }
+            renderGraph();
             logSys(`已匯入 JSON：${graphData.vertices.length} 個頂點、${graphData.edges.length} 條邊。`);
         } catch (error) {
             alert(`JSON 匯入失敗：${error.message}`);
@@ -452,6 +464,7 @@
         document.getElementById("limitStamina").value = preset.stamina;
         document.getElementById("limitSatisfaction").value = preset.satisfaction;
         document.getElementById("limitThrill").value = preset.thrill;
+        renderGraph();
         if (shouldLog) logSys(`已套用測試參數：${name}`);
     }
 
@@ -516,12 +529,43 @@
         renderGraph();
     }
 
+    function getStartNodeId() {
+        const select = document.getElementById("startNodeSelect");
+        return select ? select.value : "";
+    }
+
+    function applyStartNodeStyle() {
+        const startNodeId = getStartNodeId();
+        if (!startNodeId || !nodesDataSet.get(startNodeId)) return;
+
+        nodesDataSet.update({
+            id: startNodeId,
+            color: { background: "#f1c40f", border: "#b7791f" },
+            borderWidth: 4,
+            font: { color: "#1f2933", size: 13, multi: true, bold: true },
+            shadow: { enabled: true, color: "rgba(183, 121, 31, 0.35)", size: 12, x: 0, y: 0 }
+        });
+    }
+
+    function handleStartNodeChange() {
+        renderGraph();
+    }
+
     function renderGraph() {
+        const startNodeId = getStartNodeId();
         const updatedNodes = graphData.vertices.map(v => ({
             id: v.id,
-            label: `${v.id}. ${v.name}\n時間:${v.W_time} 預算:${v.W_cost} 體力:${v.W_stamina}\n滿意:${v.W_satisfaction} 刺激:${v.W_thrill}`,
-            color: { background: "#34495e", border: "#2c3e50" },
-            font: { color: "white", size: 12, multi: true }
+            label: `${v.id === startNodeId ? "起點\n" : ""}${v.id}. ${v.name}\n時間:${v.W_time} 預算:${v.W_cost} 體力:${v.W_stamina}\n滿意:${v.W_satisfaction} 刺激:${v.W_thrill}`,
+            color: v.id === startNodeId
+                ? { background: "#f1c40f", border: "#b7791f" }
+                : { background: "#34495e", border: "#2c3e50" },
+            borderWidth: v.id === startNodeId ? 4 : 1,
+            font: v.id === startNodeId
+                ? { color: "#1f2933", size: 13, multi: true, bold: true }
+                : { color: "white", size: 12, multi: true },
+            shadow: v.id === startNodeId
+                ? { enabled: true, color: "rgba(183, 121, 31, 0.35)", size: 12, x: 0, y: 0 }
+                : false
         }));
 
         const updatedEdges = graphData.edges.map(e => ({
@@ -558,6 +602,7 @@
             nodesDataSet.update(updatedNodes);
             edgesDataSet.update(updatedEdges);
         }
+        applyStartNodeStyle();
     }
 
     function getConstraints() {
@@ -601,6 +646,7 @@
                         edgesDataSet.update({ id: edgeId, color: { color: "#e74c3c" }, width: 4 });
                     }
                 }
+                applyStartNodeStyle();
             } else {
                 logSys(`錯誤：${result.message || result.error}`);
             }
